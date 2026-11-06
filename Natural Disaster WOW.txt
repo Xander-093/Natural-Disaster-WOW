@@ -1,19 +1,34 @@
--- Beri jeda 3 detik agar aman
-task.wait(3)
+-- Beri jeda sebentar agar game termuat sempurna
+task.wait(2)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
--- Fungsi Pop-up Peringatan (Warning Prompt)
+-- Pilih tempat parent ScreenGui yang paling aman (utamakan CoreGui agar tidak ke-reset)
+local guiParent = gethui and gethui() or (syn and syn.protect_gui and (function()
+    local s = Instance.new("ScreenGui")
+    syn.protect_gui(s)
+    return s.Parent
+end)()) or CoreGui
+
+-- Hapus GUI lama jika skrip dieksekusi ulang
+if guiParent:FindFirstChild("NDSUltimateGui") then
+    guiParent.NDSUltimateGui:Destroy()
+end
+if guiParent:FindFirstChild("NDSWarnGui") then
+    guiParent.NDSWarnGui:Destroy()
+end
+
+-- Fungsi Pop-up Peringatan (Warning Prompt) yang lebih stabil
 local function showWarningPrompt()
     local warnGui = Instance.new("ScreenGui")
     warnGui.Name = "NDSWarnGui"
     warnGui.ResetOnSpawn = false
-    warnGui.Parent = PlayerGui
+    warnGui.Parent = guiParent
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 280, 0, 160)
@@ -82,42 +97,40 @@ local function showWarningPrompt()
     noCorner.CornerRadius = UDim.new(0, 6)
     noCorner.Parent = noBtn
 
-    -- Logika Tombol
     local agreed = false
+    local clicked = false
+
     yesBtn.MouseButton1Click:Connect(function()
         agreed = true
+        clicked = true
         warnGui:Destroy()
     end)
 
     noBtn.MouseButton1Click:Connect(function()
+        agreed = false
+        clicked = true
         warnGui:Destroy()
     end)
 
-    -- Tunggu sampai player memilih
-    while warnGui.Parent do
+    while not clicked and warnGui.Parent do
         task.wait(0.1)
     end
 
     return agreed
 end
 
--- Jalankan prompt peringatan dulu, kalau klik Yes baru buka GUI utama
+-- Jalankan prompt peringatan dulu
 if showWarningPrompt() then
-
-    -- Hapus GUI lama jika skrip dieksekusi ulang
-    if PlayerGui:FindFirstChild("NDSUltimateGui") then
-        PlayerGui.NDSUltimateGui:Destroy()
-    end
 
     -- 1. Membuat ScreenGui Utama
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "NDSUltimateGui"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = PlayerGui
+    ScreenGui.Parent = guiParent
 
-    -- Frame Utama (Menu - Ukuran Pendek dengan Scroll)
+    -- Frame Utama
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 260, 0, 310)
+    MainFrame.Size = UDim2.new(0, 260, 0, 330)
     MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
     MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     MainFrame.BorderSizePixel = 0
@@ -148,41 +161,36 @@ if showWarningPrompt() then
     Title.Font = Enum.Font.GothamBold
     Title.Parent = TopBar
 
-    -- Skrip Dragging Manual
-    local dragging, dragInput, dragStart, startPos
+    -- Skrip Dragging Manual yang Lancar di Mobile & PC
+    local dragging, dragStart, startPos
     TopBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = MainFrame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    TopBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
             MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 
-    -- 2. ScrollingFrame (Canvas diperbesar agar muat komponen target fling)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- 2. ScrollingFrame
     local ScrollContainer = Instance.new("ScrollingFrame")
-    ScrollContainer.Size = UDim2.new(1, -10, 1, -55)
+    ScrollContainer.Size = UDim2.new(1, -10, 1, -50)
     ScrollContainer.Position = UDim2.new(0, 5, 0, 45)
     ScrollContainer.BackgroundTransparency = 1
     ScrollContainer.BorderSizePixel = 0
-    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 470)
+    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
     ScrollContainer.ScrollBarThickness = 4
     ScrollContainer.Parent = MainFrame
 
@@ -210,14 +218,14 @@ if showWarningPrompt() then
         return btn
     end
 
-    -- Daftar Tombol Fitur Dasar
+    -- Komponen Menu
     local FlyBtn = createButton("Fly Mode: OFF", 5)
     local NoClipBtn = createButton("No Clip: OFF", 48)
     local WalkInWaterBtn = createButton("Walk in Water: OFF", 91)
     local AntiFlingBtn = createButton("Anti-Fling: ON", 134)
     AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
 
-    -- Target Fling Label & Input Box (Ganti tombol fling lama)
+    -- Target Fling Label & Input Box
     local FlingLabel = Instance.new("TextLabel")
     FlingLabel.Size = UDim2.new(0, 230, 0, 18)
     FlingLabel.Position = UDim2.new(0.5, -115, 0, 177)
@@ -375,7 +383,7 @@ if showWarningPrompt() then
         end
     end)
 
-    -- B. ANTI-FLING (FIXED & AMAN)
+    -- B. ANTI-FLING
     local antiFlingActive = true
     AntiFlingBtn.MouseButton1Click:Connect(function()
         antiFlingActive = not antiFlingActive
@@ -456,116 +464,4 @@ if showWarningPrompt() then
             bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
             bg.Parent = rootPart
 
-            task.spawn(function()
-                while flying and char and char:FindFirstChild("HumanoidRootPart") and hum do
-                    local cam = Workspace.CurrentCamera
-                    bg.CFrame = cam.CFrame
-
-                    if hum.MoveDirection.Magnitude > 0 then
-                        bv.Velocity = cam.CFrame.LookVector * (hum.MoveDirection.Magnitude * 50)
-                    else
-                        bv.Velocity = Vector3.new(0, 0.1, 0)
-                    end
-                    RunService.RenderStepped:Wait()
-                end
-            end)
-        else
-            FlyBtn.Text = "Fly Mode: OFF"
-            FlyBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-            if char and char:FindFirstChildOfClass("Humanoid") then
-                char.Humanoid.PlatformStand = false
-            end
-            if bv then bv:Destroy() end
-            if bg then bg:Destroy() end
-        end
-    end)
-
-    -- F. NO CLIP
-    local noclipEnabled = false
-    NoClipBtn.MouseButton1Click:Connect(function()
-        noclipEnabled = not noclipEnabled
-        if noclipEnabled then
-            NoClipBtn.Text = "No Clip: ON"
-            NoClipBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-        else
-            NoClipBtn.Text = "No Clip: OFF"
-            NoClipBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-        end
-    end)
-
-    RunService.Stepped:Connect(function()
-        if noclipEnabled and LocalPlayer.Character then
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end)
-
-    -- G. TARGET FLING VIA TEXTBOX (AUTO-RETURN & AUTO-NOCLIP)
-    FlingBox.FocusLost:Connect(function(enterPressed)
-        if not enterPressed then return end
-        local query = string.lower(FlingBox.Text)
-        local targetPlayer = nil
-        
-        -- Cari player berdasarkan ketikan nama / display name
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and (string.sub(string.lower(p.Name), 1, #query) == query or string.sub(string.lower(p.DisplayName), 1, #query) == query) then
-                targetPlayer = p
-                break
-            end
-        end
-        
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local char = LocalPlayer.Character
-            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-            local rootPart = char.HumanoidRootPart
-            local originalPos = rootPart.CFrame -- Simpan posisi awal untuk kembali
-            
-            FlingBox.Text = "Flinging..."
-            
-            -- 1. Nyalakan Noclip Otomatis agar tidak nyangkut
-            local noclipConn
-            noclipConn = RunService.Stepped:Connect(function()
-                if char then
-                    for _, part in pairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then part.CanCollide = false end
-                    end
-                end
-            end)
-            
-            -- 2. Teleport ke target
-            local targetRoot = targetPlayer.Character.HumanoidRootPart
-            rootPart.CFrame = targetRoot.CFrame
-            task.wait(0.1)
-            
-            -- 3. Proses Fling (Putar kecepatan tinggi)
-            local bav = Instance.new("BodyAngularVelocity", rootPart)
-            bav.MaxTorque = Vector3.new(0, math.huge, 0)
-            bav.AngularVelocity = Vector3.new(0, 99999, 0)
-            
-            local bavPos = Instance.new("BodyVelocity", rootPart)
-            bavPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bavPos.Velocity = Vector3.new(0, 50, 0)
-            
-            task.wait(0.6) -- Durasi fling
-            
-            if bav then bav:Destroy() end
-            if bavPos then bavPos:Destroy() end
-            
-            -- 4. Matikan noclip otomatis dan kembali ke tempat semula
-            if noclipConn then noclipConn:Disconnect() end
-            rootPart.CFrame = originalPos
-            
-            FlingBox.Text = "Berhasil!"
-            task.wait(1.5)
-            FlingBox.Text = ""
-        else
-            FlingBox.Text = "Tidak ketemu!"
-            task.wait(1.5)
-            FlingBox.Text = ""
-        end
-    end)
-
-end
+            task.spawn(function
