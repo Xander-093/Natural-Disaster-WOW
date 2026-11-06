@@ -4,7 +4,6 @@ task.wait(3)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local StarterGui = game:GetService("StarterGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -177,13 +176,13 @@ if showWarningPrompt() then
         end
     end)
 
-    -- 2. ScrollingFrame
+    -- 2. ScrollingFrame (Canvas diperbesar agar muat komponen target fling)
     local ScrollContainer = Instance.new("ScrollingFrame")
     ScrollContainer.Size = UDim2.new(1, -10, 1, -55)
     ScrollContainer.Position = UDim2.new(0, 5, 0, 45)
     ScrollContainer.BackgroundTransparency = 1
     ScrollContainer.BorderSizePixel = 0
-    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 435)
+    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 470)
     ScrollContainer.ScrollBarThickness = 4
     ScrollContainer.Parent = MainFrame
 
@@ -211,19 +210,48 @@ if showWarningPrompt() then
         return btn
     end
 
-    -- Daftar Tombol Fitur
+    -- Daftar Tombol Fitur Dasar
     local FlyBtn = createButton("Fly Mode: OFF", 5)
     local NoClipBtn = createButton("No Clip: OFF", 48)
     local WalkInWaterBtn = createButton("Walk in Water: OFF", 91)
     local AntiFlingBtn = createButton("Anti-Fling: ON", 134)
     AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
 
-    local FlingBtn = createButton("Fling Player: OFF", 177)
+    -- Target Fling Label & Input Box (Ganti tombol fling lama)
+    local FlingLabel = Instance.new("TextLabel")
+    FlingLabel.Size = UDim2.new(0, 230, 0, 18)
+    FlingLabel.Position = UDim2.new(0.5, -115, 0, 177)
+    FlingLabel.BackgroundTransparency = 1
+    FlingLabel.Text = "Target Fling (Ketik & Enter):"
+    FlingLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    FlingLabel.TextSize = 11
+    FlingLabel.Font = Enum.Font.GothamBold
+    FlingLabel.Parent = ScrollContainer
+
+    local FlingBox = Instance.new("TextBox")
+    FlingBox.Size = UDim2.new(0, 230, 0, 32)
+    FlingBox.Position = UDim2.new(0.5, -115, 0, 198)
+    FlingBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    FlingBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FlingBox.PlaceholderText = "Ketik Nama Player..."
+    FlingBox.TextSize = 12
+    FlingBox.Font = Enum.Font.GothamBold
+    FlingBox.ClearTextOnFocus = false
+    FlingBox.Parent = ScrollContainer
+
+    local FlingBoxCorner = Instance.new("UICorner")
+    FlingBoxCorner.CornerRadius = UDim.new(0, 6)
+    FlingBoxCorner.Parent = FlingBox
+
+    local FlingBoxStroke = Instance.new("UIStroke")
+    FlingBoxStroke.Color = Color3.fromRGB(255, 80, 80)
+    FlingBoxStroke.Transparency = 0.5
+    FlingBoxStroke.Parent = FlingBox
 
     -- Speed Label & Input Box
     local SpeedLabel = Instance.new("TextLabel")
     SpeedLabel.Size = UDim2.new(0, 230, 0, 18)
-    SpeedLabel.Position = UDim2.new(0.5, -115, 0, 220)
+    SpeedLabel.Position = UDim2.new(0.5, -115, 0, 238)
     SpeedLabel.BackgroundTransparency = 1
     SpeedLabel.Text = "Custom Speed (Default: 16):"
     SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -233,7 +261,7 @@ if showWarningPrompt() then
 
     local SpeedBox = Instance.new("TextBox")
     SpeedBox.Size = UDim2.new(0, 230, 0, 30)
-    SpeedBox.Position = UDim2.new(0.5, -115, 0, 241)
+    SpeedBox.Position = UDim2.new(0.5, -115, 0, 259)
     SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
     SpeedBox.TextColor3 = Color3.fromRGB(0, 255, 120)
     SpeedBox.TextSize = 13
@@ -246,9 +274,9 @@ if showWarningPrompt() then
     BoxCorner.CornerRadius = UDim.new(0, 6)
     BoxCorner.Parent = SpeedBox
 
-    local SpeedBtn = createButton("Speed Hack: OFF", 278)
-    local InfiniteYieldBtn = createButton("Infinite Yield", 321)
-    local CloseBtn = createButton("Minimize GUI (-)", 364)
+    local SpeedBtn = createButton("Speed Hack: OFF", 296)
+    local InfiniteYieldBtn = createButton("Infinite Yield", 339)
+    local CloseBtn = createButton("Minimize GUI (-)", 382)
 
     -- 3. TOMBOL LOGO TORNADO (Minimize / Open)
     local OpenButton = Instance.new("TextButton")
@@ -475,41 +503,68 @@ if showWarningPrompt() then
         end
     end)
 
-    -- G. FLING PLAYER
-    local flingActive = false
-    FlingBtn.MouseButton1Click:Connect(function()
-        flingActive = not flingActive
-        if flingActive then
-            FlingBtn.Text = "Fling Player: ON"
-            FlingBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-
-            noclipEnabled = true
-            NoClipBtn.Text = "No Clip: ON"
-            NoClipBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-
-            task.spawn(function()
-                local character = LocalPlayer.Character
-                local root = character and character:FindFirstChild("HumanoidRootPart")
-                if not root then return end
-
-                local bav = Instance.new("BodyAngularVelocity")
-                bav.Name = "FlingSpin"
-                bav.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                bav.AngularVelocity = Vector3.new(0, 99999, 0)
-                bav.Parent = root
-
-                while flingActive do
-                    RunService.RenderStepped:Wait()
-                end
-                if bav then bav:Destroy() end
-            end)
-        else
-            FlingBtn.Text = "Fling Player: OFF"
-            FlingBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("FlingSpin") then
-                character.HumanoidRootPart.FlingSpin:Destroy()
+    -- G. TARGET FLING VIA TEXTBOX (AUTO-RETURN & AUTO-NOCLIP)
+    FlingBox.FocusLost:Connect(function(enterPressed)
+        if not enterPressed then return end
+        local query = string.lower(FlingBox.Text)
+        local targetPlayer = nil
+        
+        -- Cari player berdasarkan ketikan nama / display name
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and (string.sub(string.lower(p.Name), 1, #query) == query or string.sub(string.lower(p.DisplayName), 1, #query) == query) then
+                targetPlayer = p
+                break
             end
+        end
+        
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local char = LocalPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            local rootPart = char.HumanoidRootPart
+            local originalPos = rootPart.CFrame -- Simpan posisi awal untuk kembali
+            
+            FlingBox.Text = "Flinging..."
+            
+            -- 1. Nyalakan Noclip Otomatis agar tidak nyangkut
+            local noclipConn
+            noclipConn = RunService.Stepped:Connect(function()
+                if char then
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
+                    end
+                end
+            end)
+            
+            -- 2. Teleport ke target
+            local targetRoot = targetPlayer.Character.HumanoidRootPart
+            rootPart.CFrame = targetRoot.CFrame
+            task.wait(0.1)
+            
+            -- 3. Proses Fling (Putar kecepatan tinggi)
+            local bav = Instance.new("BodyAngularVelocity", rootPart)
+            bav.MaxTorque = Vector3.new(0, math.huge, 0)
+            bav.AngularVelocity = Vector3.new(0, 99999, 0)
+            
+            local bavPos = Instance.new("BodyVelocity", rootPart)
+            bavPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bavPos.Velocity = Vector3.new(0, 50, 0)
+            
+            task.wait(0.6) -- Durasi fling
+            
+            if bav then bav:Destroy() end
+            if bavPos then bavPos:Destroy() end
+            
+            -- 4. Matikan noclip otomatis dan kembali ke tempat semula
+            if noclipConn then noclipConn:Disconnect() end
+            rootPart.CFrame = originalPos
+            
+            FlingBox.Text = "Berhasil!"
+            task.wait(1.5)
+            FlingBox.Text = ""
+        else
+            FlingBox.Text = "Tidak ketemu!"
+            task.wait(1.5)
+            FlingBox.Text = ""
         end
     end)
 
