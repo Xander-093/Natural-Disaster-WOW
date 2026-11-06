@@ -1,467 +1,380 @@
--- Beri jeda sebentar agar game termuat sempurna
-task.wait(2)
+-- Tunggu sebentar agar aman
+task.wait(1)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local CoreGui = game:GetService("CoreGui")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
--- Pilih tempat parent ScreenGui yang paling aman (utamakan CoreGui agar tidak ke-reset)
-local guiParent = gethui and gethui() or (syn and syn.protect_gui and (function()
-    local s = Instance.new("ScreenGui")
-    syn.protect_gui(s)
-    return s.Parent
-end)()) or CoreGui
-
--- Hapus GUI lama jika skrip dieksekusi ulang
-if guiParent:FindFirstChild("NDSUltimateGui") then
-    guiParent.NDSUltimateGui:Destroy()
-end
-if guiParent:FindFirstChild("NDSWarnGui") then
-    guiParent.NDSWarnGui:Destroy()
+-- Hapus GUI lama jika ada
+if PlayerGui:FindFirstChild("NDSUltimateGui") then
+    PlayerGui.NDSUltimateGui:Destroy()
 end
 
--- Fungsi Pop-up Peringatan (Warning Prompt) yang lebih stabil
-local function showWarningPrompt()
-    local warnGui = Instance.new("ScreenGui")
-    warnGui.Name = "NDSWarnGui"
-    warnGui.ResetOnSpawn = false
-    warnGui.Parent = guiParent
+-- 1. Membuat ScreenGui Utama
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NDSUltimateGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 280, 0, 160)
-    frame.Position = UDim2.new(0.5, -140, 0.5, -80)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    frame.BorderSizePixel = 0
-    frame.Parent = warnGui
+-- Frame Utama
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 260, 0, 330)
+MainFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- Bisa digeser langsung pakai sentuhan
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Thickness = 2
+UIStroke.Parent = MainFrame
+
+-- Header
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🌪️ NDS ULTIMATE GUI"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.Parent = TopBar
+
+-- ScrollingFrame
+local ScrollContainer = Instance.new("ScrollingFrame")
+ScrollContainer.Size = UDim2.new(1, -10, 1, -50)
+ScrollContainer.Position = UDim2.new(0, 5, 0, 45)
+ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.BorderSizePixel = 0
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
+ScrollContainer.ScrollBarThickness = 4
+ScrollContainer.Parent = MainFrame
+
+local function createButton(name, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 230, 0, 38)
+    btn.Position = UDim2.new(0.5, -115, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamMedium
+    btn.Text = name
+    btn.Parent = ScrollContainer
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = frame
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
 
-    local uiStroke = Instance.new("UIStroke")
-    uiStroke.Color = Color3.fromRGB(255, 60, 60)
-    uiStroke.Thickness = 2
-    uiStroke.Parent = frame
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(0, 170, 255)
+    stroke.Transparency = 0.5
+    stroke.Parent = btn
 
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 35)
-    title.Position = UDim2.new(0, 0, 0, 10)
-    title.BackgroundTransparency = 1
-    title.Text = "⚠️ WARNING ⚠️"
-    title.TextColor3 = Color3.fromRGB(255, 60, 60)
-    title.TextSize = 16
-    title.Font = Enum.Font.GothamBold
-    title.Parent = frame
-
-    local desc = Instance.new("TextLabel")
-    desc.Size = UDim2.new(1, -20, 0, 60)
-    desc.Position = UDim2.new(0, 10, 0, 45)
-    desc.BackgroundTransparency = 1
-    desc.Text = "Are you sure? If your account gets banned, it is not our fault and you take full risk. Do you want to continue?"
-    desc.TextColor3 = Color3.fromRGB(220, 220, 220)
-    desc.TextSize = 12
-    desc.Font = Enum.Font.Gotham
-    desc.TextWrapped = true
-    desc.Parent = frame
-
-    -- Tombol Yes
-    local yesBtn = Instance.new("TextButton")
-    yesBtn.Size = UDim2.new(0, 110, 0, 32)
-    yesBtn.Position = UDim2.new(0.08, 0, 0.75, 0)
-    yesBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-    yesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    yesBtn.TextSize = 13
-    yesBtn.Font = Enum.Font.GothamBold
-    yesBtn.Text = "Yes, I Agree"
-    yesBtn.Parent = frame
-
-    local yesCorner = Instance.new("UICorner")
-    yesCorner.CornerRadius = UDim.new(0, 6)
-    yesCorner.Parent = yesBtn
-
-    -- Tombol No
-    local noBtn = Instance.new("TextButton")
-    noBtn.Size = UDim2.new(0, 110, 0, 32)
-    noBtn.Position = UDim2.new(0.54, 0, 0.75, 0)
-    noBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    noBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    noBtn.TextSize = 13
-    noBtn.Font = Enum.Font.GothamBold
-    noBtn.Text = "No (Cancel)"
-    noBtn.Parent = frame
-
-    local noCorner = Instance.new("UICorner")
-    noCorner.CornerRadius = UDim.new(0, 6)
-    noCorner.Parent = noBtn
-
-    local agreed = false
-    local clicked = false
-
-    yesBtn.MouseButton1Click:Connect(function()
-        agreed = true
-        clicked = true
-        warnGui:Destroy()
-    end)
-
-    noBtn.MouseButton1Click:Connect(function()
-        agreed = false
-        clicked = true
-        warnGui:Destroy()
-    end)
-
-    while not clicked and warnGui.Parent do
-        task.wait(0.1)
-    end
-
-    return agreed
+    return btn
 end
 
--- Jalankan prompt peringatan dulu
-if showWarningPrompt() then
+-- Komponen Menu
+local FlyBtn = createButton("Fly Mode: OFF", 5)
+local NoClipBtn = createButton("No Clip: OFF", 48)
+local WalkInWaterBtn = createButton("Walk in Water: OFF", 91)
+local AntiFlingBtn = createButton("Anti-Fling: ON", 134)
+AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
 
-    -- 1. Membuat ScreenGui Utama
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "NDSUltimateGui"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = guiParent
+-- Target Fling Label & Input Box
+local FlingLabel = Instance.new("TextLabel")
+FlingLabel.Size = UDim2.new(0, 230, 0, 18)
+FlingLabel.Position = UDim2.new(0.5, -115, 0, 177)
+FlingLabel.BackgroundTransparency = 1
+FlingLabel.Text = "Target Fling (Ketik & Enter):"
+FlingLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+FlingLabel.TextSize = 11
+FlingLabel.Font = Enum.Font.GothamBold
+FlingLabel.Parent = ScrollContainer
 
-    -- Frame Utama
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 260, 0, 330)
-    MainFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Parent = ScreenGui
+local FlingBox = Instance.new("TextBox")
+FlingBox.Size = UDim2.new(0, 230, 0, 32)
+FlingBox.Position = UDim2.new(0.5, -115, 0, 198)
+FlingBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+FlingBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlingBox.PlaceholderText = "Ketik Nama Player..."
+FlingBox.TextSize = 12
+FlingBox.Font = Enum.Font.GothamBold
+FlingBox.ClearTextOnFocus = false
+FlingBox.Parent = ScrollContainer
 
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 12)
-    UICorner.Parent = MainFrame
+local FlingBoxCorner = Instance.new("UICorner")
+FlingBoxCorner.CornerRadius = UDim.new(0, 6)
+FlingBoxCorner.Parent = FlingBox
 
-    local UIStroke = Instance.new("UIStroke")
-    UIStroke.Color = Color3.fromRGB(0, 170, 255)
-    UIStroke.Thickness = 2
-    UIStroke.Parent = MainFrame
+local FlingBoxStroke = Instance.new("UIStroke")
+FlingBoxStroke.Color = Color3.fromRGB(255, 80, 80)
+FlingBoxStroke.Transparency = 0.5
+FlingBoxStroke.Parent = FlingBox
 
-    -- Header untuk Dragging Manual
-    local TopBar = Instance.new("Frame")
-    TopBar.Size = UDim2.new(1, 0, 0, 40)
-    TopBar.BackgroundTransparency = 1
-    TopBar.Parent = MainFrame
+-- Speed Label & Input Box
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(0, 230, 0, 18)
+SpeedLabel.Position = UDim2.new(0.5, -115, 0, 238)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Custom Speed (Default: 16):"
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SpeedLabel.TextSize = 11
+SpeedLabel.Font = Enum.Font.Gotham
+SpeedLabel.Parent = ScrollContainer
 
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, 0, 1, 0)
-    Title.BackgroundTransparency = 1
-    Title.Text = "🌪️ NDS ULTIMATE GUI"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 16
-    Title.Font = Enum.Font.GothamBold
-    Title.Parent = TopBar
+local SpeedBox = Instance.new("TextBox")
+SpeedBox.Size = UDim2.new(0, 230, 0, 30)
+SpeedBox.Position = UDim2.new(0.5, -115, 0, 259)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+SpeedBox.TextColor3 = Color3.fromRGB(0, 255, 120)
+SpeedBox.TextSize = 13
+SpeedBox.Font = Enum.Font.GothamBold
+SpeedBox.Text = "50"
+SpeedBox.ClearTextOnFocus = false
+SpeedBox.Parent = ScrollContainer
 
-    -- Skrip Dragging Manual yang Lancar di Mobile & PC
-    local dragging, dragStart, startPos
-    TopBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-        end
-    end)
+local BoxCorner = Instance.new("UICorner")
+BoxCorner.CornerRadius = UDim.new(0, 6)
+BoxCorner.Parent = SpeedBox
 
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+local SpeedBtn = createButton("Speed Hack: OFF", 296)
+local InfiniteYieldBtn = createButton("Infinite Yield", 339)
+local CloseBtn = createButton("Minimize GUI (-)", 382)
 
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
+-- Tombol Logo Tornado (Minimize / Open)
+local OpenButton = Instance.new("TextButton")
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Position = UDim2.new(0.02, 0, 0.2, 0)
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+OpenButton.TextColor3 = Color3.fromRGB(0, 170, 255)
+OpenButton.TextSize = 22
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "🌪️"
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true
+OpenButton.Parent = ScreenGui
 
-    -- 2. ScrollingFrame
-    local ScrollContainer = Instance.new("ScrollingFrame")
-    ScrollContainer.Size = UDim2.new(1, -10, 1, -50)
-    ScrollContainer.Position = UDim2.new(0, 5, 0, 45)
-    ScrollContainer.BackgroundTransparency = 1
-    ScrollContainer.BorderSizePixel = 0
-    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 480)
-    ScrollContainer.ScrollBarThickness = 4
-    ScrollContainer.Parent = MainFrame
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenButton
 
-    -- Fungsi membuat Tombol
-    local function createButton(name, posY)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 230, 0, 38)
-        btn.Position = UDim2.new(0.5, -115, 0, posY)
-        btn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 13
-        btn.Font = Enum.Font.GothamMedium
-        btn.Text = name
-        btn.Parent = ScrollContainer
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Color = Color3.fromRGB(0, 170, 255)
+OpenStroke.Thickness = 2
+OpenStroke.Parent = OpenButton
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = btn
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
 
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(0, 170, 255)
-        stroke.Transparency = 0.5
-        stroke.Parent = btn
-
-        return btn
-    end
-
-    -- Komponen Menu
-    local FlyBtn = createButton("Fly Mode: OFF", 5)
-    local NoClipBtn = createButton("No Clip: OFF", 48)
-    local WalkInWaterBtn = createButton("Walk in Water: OFF", 91)
-    local AntiFlingBtn = createButton("Anti-Fling: ON", 134)
-    AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-
-    -- Target Fling Label & Input Box
-    local FlingLabel = Instance.new("TextLabel")
-    FlingLabel.Size = UDim2.new(0, 230, 0, 18)
-    FlingLabel.Position = UDim2.new(0.5, -115, 0, 177)
-    FlingLabel.BackgroundTransparency = 1
-    FlingLabel.Text = "Target Fling (Ketik & Enter):"
-    FlingLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    FlingLabel.TextSize = 11
-    FlingLabel.Font = Enum.Font.GothamBold
-    FlingLabel.Parent = ScrollContainer
-
-    local FlingBox = Instance.new("TextBox")
-    FlingBox.Size = UDim2.new(0, 230, 0, 32)
-    FlingBox.Position = UDim2.new(0.5, -115, 0, 198)
-    FlingBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    FlingBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    FlingBox.PlaceholderText = "Ketik Nama Player..."
-    FlingBox.TextSize = 12
-    FlingBox.Font = Enum.Font.GothamBold
-    FlingBox.ClearTextOnFocus = false
-    FlingBox.Parent = ScrollContainer
-
-    local FlingBoxCorner = Instance.new("UICorner")
-    FlingBoxCorner.CornerRadius = UDim.new(0, 6)
-    FlingBoxCorner.Parent = FlingBox
-
-    local FlingBoxStroke = Instance.new("UIStroke")
-    FlingBoxStroke.Color = Color3.fromRGB(255, 80, 80)
-    FlingBoxStroke.Transparency = 0.5
-    FlingBoxStroke.Parent = FlingBox
-
-    -- Speed Label & Input Box
-    local SpeedLabel = Instance.new("TextLabel")
-    SpeedLabel.Size = UDim2.new(0, 230, 0, 18)
-    SpeedLabel.Position = UDim2.new(0.5, -115, 0, 238)
-    SpeedLabel.BackgroundTransparency = 1
-    SpeedLabel.Text = "Custom Speed (Default: 16):"
-    SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    SpeedLabel.TextSize = 11
-    SpeedLabel.Font = Enum.Font.Gotham
-    SpeedLabel.Parent = ScrollContainer
-
-    local SpeedBox = Instance.new("TextBox")
-    SpeedBox.Size = UDim2.new(0, 230, 0, 30)
-    SpeedBox.Position = UDim2.new(0.5, -115, 0, 259)
-    SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    SpeedBox.TextColor3 = Color3.fromRGB(0, 255, 120)
-    SpeedBox.TextSize = 13
-    SpeedBox.Font = Enum.Font.GothamBold
-    SpeedBox.Text = "50"
-    SpeedBox.ClearTextOnFocus = false
-    SpeedBox.Parent = ScrollContainer
-
-    local BoxCorner = Instance.new("UICorner")
-    BoxCorner.CornerRadius = UDim.new(0, 6)
-    BoxCorner.Parent = SpeedBox
-
-    local SpeedBtn = createButton("Speed Hack: OFF", 296)
-    local InfiniteYieldBtn = createButton("Infinite Yield", 339)
-    local CloseBtn = createButton("Minimize GUI (-)", 382)
-
-    -- 3. TOMBOL LOGO TORNADO (Minimize / Open)
-    local OpenButton = Instance.new("TextButton")
-    OpenButton.Size = UDim2.new(0, 50, 0, 50)
-    OpenButton.Position = UDim2.new(0.02, 0, 0.2, 0)
-    OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    OpenButton.TextColor3 = Color3.fromRGB(0, 170, 255)
-    OpenButton.TextSize = 22
-    OpenButton.Font = Enum.Font.GothamBold
-    OpenButton.Text = "🌪️"
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
     OpenButton.Visible = false
-    OpenButton.Active = true
-    OpenButton.Parent = ScreenGui
+end)
 
-    local OpenCorner = Instance.new("UICorner")
-    OpenCorner.CornerRadius = UDim.new(1, 0)
-    OpenCorner.Parent = OpenButton
+-- ==================== LOGIC / FITUR SCRIPTS ====================
 
-    local OpenStroke = Instance.new("UIStroke")
-    OpenStroke.Color = Color3.fromRGB(0, 170, 255)
-    OpenStroke.Thickness = 2
-    OpenStroke.Parent = OpenButton
-
-    -- Dragging Logo Tornado
-    local logoDragging, logoDragStart, logoStartPos
-    OpenButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            logoDragging = true
-            logoDragStart = input.Position
-            logoStartPos = OpenButton.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if logoDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - logoDragStart
-            OpenButton.Position = UDim2.new(logoStartPos.X.Scale, logoStartPos.X.Offset + delta.X, logoStartPos.Y.Scale, logoStartPos.Y.Offset + delta.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            logoDragging = false
-        end
-    end)
-
-    CloseBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = false
-        OpenButton.Visible = true
-    end)
-
-    OpenButton.MouseButton1Click:Connect(function()
-        MainFrame.Visible = true
-        OpenButton.Visible = false
-    end)
-
-    -- ==================== LOGIC / FITUR SCRIPTS ====================
-
-    -- A. WALK IN WATER
-    local waterWalkActive = false
-    local waterPart = nil
-
-    WalkInWaterBtn.MouseButton1Click:Connect(function()
-        waterWalkActive = not waterWalkActive
-        if waterWalkActive then
-            WalkInWaterBtn.Text = "Walk in Water: ON"
-            WalkInWaterBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-
-            waterPart = Instance.new("Part")
-            waterPart.Name = "WaterWalkPlatform"
-            waterPart.Size = Vector3.new(15, 1, 15)
-            waterPart.Transparency = 1
-            waterPart.Anchored = true
-            waterPart.CanCollide = true
-            waterPart.Parent = Workspace
-
-            task.spawn(function()
-                while waterWalkActive do
-                    local char = LocalPlayer.Character
-                    local root = char and char:FindFirstChild("HumanoidRootPart")
-                    if root then
-                        waterPart.Position = Vector3.new(root.Position.X, 0, root.Position.Z)
-                    end
-                    RunService.RenderStepped:Wait()
+-- A. WALK IN WATER
+local waterWalkActive = false
+local waterPart = nil
+WalkInWaterBtn.MouseButton1Click:Connect(function()
+    waterWalkActive = not waterWalkActive
+    if waterWalkActive then
+        WalkInWaterBtn.Text = "Walk in Water: ON"
+        WalkInWaterBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
+        waterPart = Instance.new("Part")
+        waterPart.Name = "WaterWalkPlatform"
+        waterPart.Size = Vector3.new(15, 1, 15)
+        waterPart.Transparency = 1
+        waterPart.Anchored = true
+        waterPart.CanCollide = true
+        waterPart.Parent = Workspace
+        task.spawn(function()
+            while waterWalkActive do
+                local char = LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if root then
+                    waterPart.Position = Vector3.new(root.Position.X, 0, root.Position.Z)
                 end
-                if waterPart then
-                    waterPart:Destroy()
-                    waterPart = nil
-                end
-            end)
-        else
-            WalkInWaterBtn.Text = "Walk in Water: OFF"
-            WalkInWaterBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-            if waterPart then
-                waterPart:Destroy()
-                waterPart = nil
+                RunService.RenderStepped:Wait()
             end
-        end
-    end)
-
-    -- B. ANTI-FLING
-    local antiFlingActive = true
-    AntiFlingBtn.MouseButton1Click:Connect(function()
-        antiFlingActive = not antiFlingActive
-        if antiFlingActive then
-            AntiFlingBtn.Text = "Anti-Fling: ON"
-            AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-        else
-            AntiFlingBtn.Text = "Anti-Fling: OFF"
-            AntiFlingBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-        end
-    end)
-
-    RunService.Stepped:Connect(function()
-        if antiFlingActive and LocalPlayer.Character then
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
-                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            end
-        end
-    end)
-
-    -- C. INFINITE YIELD
-    InfiniteYieldBtn.MouseButton1Click:Connect(function()
-        InfiniteYieldBtn.Text = "Loading IY..."
-        pcall(function()
-            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+            if waterPart then waterPart:Destroy() waterPart = nil end
         end)
-        InfiniteYieldBtn.Text = "Infinite Yield (Loaded!)"
-    end)
+    else
+        WalkInWaterBtn.Text = "Walk in Water: OFF"
+        WalkInWaterBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+        if waterPart then waterPart:Destroy() waterPart = nil end
+    end
+end)
 
-    -- D. SPEED HACK
-    local speedEnabled = false
-    SpeedBtn.MouseButton1Click:Connect(function()
-        speedEnabled = not speedEnabled
-        if speedEnabled then
-            SpeedBtn.Text = "Speed Hack: ON"
-            SpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-        else
-            SpeedBtn.Text = "Speed Hack: OFF"
-            SpeedBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid.WalkSpeed = 16
+-- B. ANTI-FLING
+local antiFlingActive = true
+AntiFlingBtn.MouseButton1Click:Connect(function()
+    antiFlingActive = not antiFlingActive
+    AntiFlingBtn.Text = antiFlingActive and "Anti-Fling: ON" or "Anti-Fling: OFF"
+    AntiFlingBtn.BackgroundColor3 = antiFlingActive and Color3.fromRGB(0, 120, 80) or Color3.fromRGB(35, 35, 50)
+end)
+
+RunService.Stepped:Connect(function()
+    if antiFlingActive and LocalPlayer.Character then
+        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+end)
+
+-- C. INFINITE YIELD
+InfiniteYieldBtn.MouseButton1Click:Connect(function()
+    InfiniteYieldBtn.Text = "Loading IY..."
+    pcall(function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end)
+    InfiniteYieldBtn.Text = "Infinite Yield (Loaded!)"
+end)
+
+-- D. SPEED HACK
+local speedEnabled = false
+SpeedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    SpeedBtn.Text = speedEnabled and "Speed Hack: ON" or "Speed Hack: OFF"
+    SpeedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 120, 80) or Color3.fromRGB(35, 35, 50)
+    if not speedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if speedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(SpeedBox.Text) or 16
+    end
+end)
+
+-- E. FLY MODE
+local flying = false
+local bv, bg
+FlyBtn.MouseButton1Click:Connect(function()
+    flying = not flying
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if flying then
+        FlyBtn.Text = "Fly Mode: ON"
+        FlyBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
+        local rootPart = char.HumanoidRootPart
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = true end
+        bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Parent = rootPart
+        bg = Instance.new("BodyGyro")
+        bg.CFrame = rootPart.CFrame
+        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bg.Parent = rootPart
+        task.spawn(function()
+            while flying and char and char:FindFirstChild("HumanoidRootPart") and hum do
+                local cam = Workspace.CurrentCamera
+                bg.CFrame = cam.CFrame
+                if hum.MoveDirection.Magnitude > 0 then
+                    bv.Velocity = cam.CFrame.LookVector * (hum.MoveDirection.Magnitude * 50)
+                else
+                    bv.Velocity = Vector3.new(0, 0.1, 0)
+                end
+                RunService.RenderStepped:Wait()
             end
-        end
-    end)
+        end)
+    else
+        FlyBtn.Text = "Fly Mode: OFF"
+        FlyBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+        if char and char:FindFirstChildOfClass("Humanoid") then char.Humanoid.PlatformStand = false end
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+    end
+end)
 
-    RunService.RenderStepped:Connect(function()
-        if speedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local customSpeed = tonumber(SpeedBox.Text) or 16
-            LocalPlayer.Character.Humanoid.WalkSpeed = customSpeed
-        end
-    end)
+-- F. NO CLIP
+local noclipEnabled = false
+NoClipBtn.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    NoClipBtn.Text = noclipEnabled and "No Clip: ON" or "No Clip: OFF"
+    NoClipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 120, 80) or Color3.fromRGB(35, 35, 50)
+end)
 
-    -- E. FLY MODE
-    local flying = false
-    local bv, bg
-    FlyBtn.MouseButton1Click:Connect(function()
-        flying = not flying
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end
+end)
+
+-- G. TARGET FLING VIA TEXTBOX (AUTO-RETURN & AUTO-NOCLIP)
+FlingBox.FocusLost:Connect(function(enterPressed)
+    if not enterPressed then return end
+    local query = string.lower(FlingBox.Text)
+    local targetPlayer = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (string.sub(string.lower(p.Name), 1, #query) == query or string.sub(string.lower(p.DisplayName), 1, #query) == query) then
+            targetPlayer = p
+            break
+        end
+    end
+    
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-        if flying then
-            FlyBtn.Text = "Fly Mode: ON"
-            FlyBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 80)
-
-            local rootPart = char.HumanoidRootPart
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.PlatformStand = true end
-
-            bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bv.Parent = rootPart
-
-            bg = Instance.new("BodyGyro")
-            bg.CFrame = rootPart.CFrame
-            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-            bg.Parent = rootPart
-
-            task.spawn(function
+        local rootPart = char.HumanoidRootPart
+        local originalPos = rootPart.CFrame
+        
+        FlingBox.Text = "Flinging..."
+        local noclipConn
+        noclipConn = RunService.Stepped:Connect(function()
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
+        end)
+        
+        rootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+        task.wait(0.1)
+        
+        local bav = Instance.new("BodyAngularVelocity", rootPart)
+        bav.MaxTorque = Vector3.new(0, math.huge, 0)
+        bav.AngularVelocity = Vector3.new(0, 99999, 0)
+        local bavPos = Instance.new("BodyVelocity", rootPart)
+        bavPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bavPos.Velocity = Vector3.new(0, 50, 0)
+        
+        task.wait(0.6)
+        if bav then bav:Destroy() end
+        if bavPos then bavPos:Destroy() end
+        if noclipConn then noclipConn:Disconnect() end
+        rootPart.CFrame = originalPos
+        
+        FlingBox.Text = "Berhasil!"
+        task.wait(1.5)
+        FlingBox.Text = ""
+    else
+        FlingBox.Text = "Tidak ketemu!"
+        task.wait(1.5)
+        FlingBox.Text = ""
+    end
+end)
